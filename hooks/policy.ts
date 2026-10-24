@@ -222,26 +222,65 @@ export function judgedDecision(turnId: string, config: Config, r: JudgeOutcome):
 
 export type Step = { turnId: string; model: string; effort?: string | number | undefined; agentId?: string }
 
-/** The effort to send for one request, or undefined to leave the request as the engine made it. */
-export function stepEffort(config: Config, session: Session, step: Step, envEffort?: string): Effort | undefined {
+/** Why a request was or wasn't rewritten. */
+export type StepWhy = 'env' | 'off' | 'subagent' | 'session' | 'no-effort' | 'budget' | 'unknown-model' | 'applied' | 'clamped'
+
+/** For one request: the effort to send (undefined leaves it as the engine made it), what was asked for, and why. */
+export type StepPlan = { send: Effort | undefined; requested: Effort | null; why: StepWhy }
+
+export function stepPlan(config: Config, session: Session, step: Step, envEffort?: string): StepPlan {
+  const none = (why: StepWhy, requested: Effort | null = null): StepPlan => ({ send: undefined, requested, why })
   // CLAUDE_CODE_EFFORT_LEVEL is the person's hard override: checked on every step, main or subagent.
-  if (envEffort !== undefined && envEffort.trim() !== '') return undefined
-  if (!isActive(config, session)) return undefined
-  const current = asEffort(step.effort)
-  if (current === undefined || typeof step.effort !== 'string') return undefined
+  if (envEffort !== undefined && envEffort.trim() !== '') return none('env')
+  if (!isActive(config, session)) return none('off')
+  const current = typeof step.effort === 'string' ? asEffort(step.effort) : undefined
   const supported = supportedEfforts(step.model)
-  if (!supported) return undefined
 
   if (step.agentId !== undefined) {
     const cap = config.subagentCap
-    if (cap === null || rank(current) <= rank(cap)) return undefined
-    return clampEffort(cap, supported)
+    if (cap === null || current === undefined || !supported || rank(current) <= rank(cap)) return none('subagent')
+    return { send: clampEffort(cap, supported), requested: cap, why: 'subagent' }
   }
 
   const d = session.decision
-  if (session.pin) return clampEffort(session.pin, supported)
-  if (!d || d.turnId !== step.turnId || d.effort === null) return undefined
-  return clampEffort(d.effort, supported)
+  const requested = session.pin ?? (d && d.turnId === step.turnId ? d.effort : null)
+  if (requested === null) return none('session')
+  if (typeof step.effort === 'number') return none('budget', requested)
+  if (current === undefined) return none('no-effort', requested)
+  if (!supported) return none('unknown-model', requested)
+  const send = clampEffort(requested, supported)
+  return { send, requested, why: send === requested ? 'applied' : 'clamped' }
+}
+
+/** The effort to send for one request, or undefined to leave the request as the engine made it. */
+export function stepEffort(config: Config, session: Session, step: Step, envEffort?: string): Effort | undefined {
+  return stepPlan(config, session, step, envEffort).send
+}
+
+/** The status line after a main-loop request: what was sent, not just what was chosen. */
+export function stepStatus(plan: StepPlan, session: Session, turnId: string): string | undefined {
+  const d = session.decision && session.decision.turnId === turnId ? session.decision : null
+  const tag = session.pin ? 'pinned' : d ? sourceTag(d) : ''
+  const suffix = tag ? ` · ${tag}` : ''
+  switch (plan.why) {
+    case 'env': return 'effort: CLAUDE_CODE_EFFORT_LEVEL'
+    case 'off': return undefined
+    case 'subagent': return undefined
+    case 'session': return d ? statusLine(true, d) : 'effort: session'
+    case 'no-effort': return 'effort: unchanged (model takes no effort)'
+    case 'budget': return 'effort: unchanged (budget, not a level)'
+    case 'unknown-model': return 'effort: unchanged (unknown model)'
+    case 'applied': return `effort ${plan.send}${suffix}`
+    case 'clamped': return `effort ${plan.send} (${plan.requested} clamped)${suffix}`
+  }
+}
+
+function sourceTag(d: Decision): string {
+  if (d.source === 'judge') return d.label ?? ''
+  if (d.source === 'inherit') return 'kept'
+  if (d.source === 'pin') return 'pinned'
+  if (d.source === 'ultrathink') return 'ultrathink'
+  return ''
 }
 
 // ---- commands and text ----

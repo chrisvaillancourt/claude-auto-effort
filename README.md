@@ -6,7 +6,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 
 ## Behavior
 
-- **Main conversation only.** At the start of each main-loop turn, the mod decides one effort and applies it to every model request of that turn (the first one and each tool-loop step after it). The UI keeps showing the session's effort, so the mod shows its own choice in its status line under the prompt (for example `effort low · trivial`).
+- **Main conversation only.** At the start of each main-loop turn, the mod decides one effort and applies it to every model request of that turn (the first one and each tool-loop step after it). The UI keeps showing the session's effort, so the mod shows what it sent in its status line under the prompt, refreshed at every request: `effort low · trivial`, `effort high (xhigh clamped) · pinned` when the model lacks the level, or `effort: unchanged (unknown model)` when it left the request alone.
 - **The judge.** One `$.model.complete` call to Haiku (`claude-haiku-5-5`, effort `low`, at most 16 output tokens) with a short rubric. It rates the request by how open-ended the problem is, not by its length or the amount of work:
 
   | Label | Means | Default effort |
@@ -59,7 +59,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 
 - Its value is unmeasured (see above).
 - The mod can't see where the session's effort came from, so it overrides an explicit `/effort` or `--effort` while it is on (see "Your own effort setting").
-- The status line shows the mod's choice; Claude Code's own effort display still shows the session's effort.
+- Claude Code's own effort display still shows the session's effort; only the mod's status line shows what was sent.
 - The turn waits for the judge (bounded by `timeoutMs`); a timed-out request is cancelled but may still be billed.
 - Judging is per prompt with no conversation history, so "now do the same for the other file" is judged on those words alone.
 - Not built: judging subagent prompts, model switching, a pane, explanations of the label, and omp's judge-role chain and caching.

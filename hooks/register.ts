@@ -17,7 +17,8 @@ import {
   statsText,
   statusLine,
   statusText,
-  stepEffort,
+  stepPlan,
+  stepStatus,
 } from './policy'
 import type { JudgeOutcome } from './policy'
 import type { Config, Decision, Label, LogRecord, Session, Usage } from '../types'
@@ -165,7 +166,15 @@ export const register: Register = (on, options) => {
   // Apply the turn's decision to every request; facts (off, pin, model) are read now.
   on('turn.step', async function* ($, e, next) {
     const s = await read($, sessionAtom)
-    const effort = stepEffort(config, s, e, await $.env.get('CLAUDE_CODE_EFFORT_LEVEL'))
+    const plan = stepPlan(config, s, e, await $.env.get('CLAUDE_CODE_EFFORT_LEVEL'))
+    const effort = plan.send
+    if (e.agentId === undefined) {
+      try {
+        $.ui.status(stepStatus(plan, s, e.turnId))
+      } catch {
+        // best effort
+      }
+    }
     if (e.agentId === undefined && s.decision?.turnId === e.turnId) {
       await update($, sessionAtom, cur => {
         const d = cur.decision

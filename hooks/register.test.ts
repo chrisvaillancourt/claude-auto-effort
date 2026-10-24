@@ -208,6 +208,24 @@ describe('auto-effort', () => {
     expect(w.judged.length).toBe(1)
   })
 
+  for (const [name, model, effort, sent, status] of [
+    ['clamped to the model', 'claude-opus-4-6', 'high', 'high', 'effort high (xhigh clamped) · pinned'],
+    ['left alone on an unknown model', 'proxy-custom-model', 'high', 'high', 'effort: unchanged (unknown model)'],
+    ['left alone on a model without effort', OPUS, undefined, undefined, 'effort: unchanged (model takes no effort)'],
+  ] as const) {
+    test(`the status line says what was sent: ${name}`, async ($, on) => {
+      const w = world(on)
+      await start($)
+      await command($, 'pin xhigh')
+      const turnId = `t${++turnNo}`
+      await $.turn.start({ text: 'explain the race', turnId })
+      const s = $.turn.step({ turnId, index: 0, model, effort, messageCount: 1 })
+      for await (const _ of s);
+      expect(effortsOf(w, turnId)).toEqual([sent])
+      expect(w.statuses.at(-1)).toBe(status)
+    })
+  }
+
   test('the enabled option off judges nothing until /auto-effort on', { options: { enabled: false } }, async ($, on) => {
     const w = world(on)
     await start($)
