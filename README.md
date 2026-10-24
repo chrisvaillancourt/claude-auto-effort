@@ -30,8 +30,8 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 
 ## What it costs
 
-- One Haiku request per judged turn: about 300 input tokens of rubric plus the prompt (capped at 4,000 characters, roughly 1,000 tokens), and a few output tokens. Skipped, pinned and `ultrathink` turns make no request. Classifications don't appear in Claude Code's session cost totals; the log records their usage.
-- Up to `timeoutMs` of wait before each judged turn; the live probe measured about 0.5–1.5 s.
+- One Haiku request per judged turn: about 460 input tokens of rubric (a short prompt measured 470–500 in all) plus the prompt (capped at 4,000 characters, roughly 1,000 tokens more), and under 10 output tokens. Skipped, pinned and `ultrathink` turns make no request. These requests don't appear in Claude Code's session cost totals; the log records their usage.
+- Up to `timeoutMs` of wait before each judged turn; live runs on Claude Code 2.1.310 measured 0.7–1.3 s.
 - Changing the effort between requests keeps the prompt cache on Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.1 (per Claude Code's docs). On other models or providers an effort change may reread the cached prefix; the mod never changes the model, system prompt or tools.
 - The effort itself: turns the judge rates `open` run at `xhigh`, which costs more than a session at `medium` or `high`. Lower the last entry of `efforts` to cap that.
 
@@ -53,7 +53,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 | `judgeModel` | `claude-haiku-5-5` | The model that rates prompts (a full id). |
 | `timeoutMs` | `4000` | How long a turn waits for the judge before it runs at the session's effort. |
 | `subagentCap` | `off` | `off`, or a level: subagent requests above it are lowered to it. |
-| `logDir` | `` (empty) | Where the per-session logs go; empty means `~/.claude/auto-effort`. |
+| `logDir` | empty | Where the per-session logs go; empty means `~/.claude/auto-effort`. |
 
 ## Limitations
 

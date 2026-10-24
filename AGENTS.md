@@ -55,6 +55,7 @@ The API is early access and changes between releases; the declarations are the a
 - `$.session.compact` rejects while a turn runs and in headless sessions.
 - A plugin's submitted prompt never expands `@` mentions; `$.prompt.fill` lets the person send it instead.
 - `$.model.fork` replays the main thread's last request, which ends before the turn's final answer: quote the answer into the fork prompt if the fork needs it.
+- A `turn.step` rewrite of `effort` reaches the request: an observer mod beneath this one saw `low` and `xhigh` on a session at `high`, on every step of a tool loop (Claude Code 2.1.310, Haiku 5.5). `$.model.complete`'s `timeoutMs` resolves `aborted` on time (100 ms set, 102 ms measured).
 - `claude plugin validate` reads a `command.run` hook as answering its own command only when the matcher and the `$.command.register` name are string literals; a `const` makes it a gate without `.catch`.
 - The engine already prefixes `$.ui.status`, `$.ui.toast` and command output with the plugin name; don't add `auto-effort:` there. `$.ui.log` lines keep the prefix.
 - A model `Write` outside the project raises a permission prompt; have the plugin write its own files with `$.fs.write` (it creates directories). `$.fs.write` replaces the whole file; there is no append.
