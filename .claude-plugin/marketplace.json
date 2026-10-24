@@ -1,0 +1,13 @@
+{
+  "name": "auto-effort",
+  "owner": {
+    "name": "Chris Vaillancourt"
+  },
+  "plugins": [
+    {
+      "name": "auto-effort",
+      "source": "./"
+    }
+  ],
+  "description": "Picks the reasoning effort for each prompt from a cheap difficulty check, so easy turns run at low effort and hard ones at high."
+}
