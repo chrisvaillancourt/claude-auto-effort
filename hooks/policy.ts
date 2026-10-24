@@ -121,10 +121,32 @@ export const JUDGE_SYSTEM = [
   'Answer with the label alone: trivial, routine, involved or open.',
 ].join('\n')
 
+const FENCED_BLOCK = /```+[\s\S]*?(?:```+|$)/g
+/** Raw characters scanned from each end of a huge paste before cleanup (bounds the work). */
+const SCAN_EDGE_CHARS = 262_144
+
+/**
+ * The judge's input, after oh-my-pi's tiny-model preprocessing: fenced code
+ * blocks dropped (unless that leaves almost nothing), then cut in the middle
+ * to JUDGE_MAX_CHARS, two thirds from the head and one third from the tail,
+ * so a task written after a long paste survives.
+ */
 export function judgePrompt(text: string): string {
-  const t = text.trim()
-  const body = t.length > JUDGE_MAX_CHARS ? `${t.slice(0, JUDGE_MAX_CHARS)}\n[cut]` : t
-  return `<request>\n${body}\n</request>`
+  let t = text.trim()
+  if (t.length > SCAN_EDGE_CHARS * 2) t = `${t.slice(0, SCAN_EDGE_CHARS)}\n${t.slice(-SCAN_EDGE_CHARS)}`
+  const stripped = t.replace(FENCED_BLOCK, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  if (stripped.length >= 12) t = stripped
+  return `<request>\n${middleCut(t, JUDGE_MAX_CHARS)}\n</request>`
+}
+
+function middleCut(t: string, max: number): string {
+  if (t.length <= max) return t
+  // The count changes the marker's width; two passes settle it.
+  let marker = `\n[… ${t.length - max} chars omitted …]\n`
+  marker = `\n[… ${t.length - Math.max(0, max - marker.length)} chars omitted …]\n`
+  const kept = Math.max(0, max - marker.length)
+  const head = Math.ceil((kept * 2) / 3)
+  return `${t.slice(0, head)}${marker}${t.slice(t.length - (kept - head))}`
 }
 
 /** The label the judge's reply names, when it is exactly one label word. */

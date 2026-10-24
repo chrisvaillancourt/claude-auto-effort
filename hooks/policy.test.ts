@@ -97,6 +97,23 @@ describe('prompt rules', () => {
     expect(judgePrompt('x'.repeat(JUDGE_MAX_CHARS + 500)).length).toBeLessThan(JUDGE_MAX_CHARS + 100)
   })
 
+  test('a long paste before the task keeps the task: head and tail survive', async () => {
+    const fixture = JSON.stringify(Array.from({ length: 300 }, (_, i) => ({ id: i, name: `row-${i}`, ok: true })))
+    const task = 'Two services deadlock intermittently under load with no reproduction; find the cause.'
+    const p = judgePrompt(`Here is the fixture:\n${fixture}\n\n${task}`)
+    expect(p).toContain(task)
+    expect(p).toContain('Here is the fixture')
+    expect(p).toContain('chars omitted')
+    expect(p.length).toBeLessThan(JUDGE_MAX_CHARS + 100)
+  })
+
+  test('fenced code blocks are dropped unless nothing else is left', async () => {
+    const p = judgePrompt('Why does this hang?\n```ts\nawait lock.acquire()\n```\nIt only hangs under load.')
+    expect(p).not.toContain('lock.acquire')
+    expect(p).toContain('It only hangs under load.')
+    expect(judgePrompt('```ts\nawait lock.acquire()\n```')).toContain('lock.acquire')
+  })
+
   test('parseLabel takes exactly one label word', async () => {
     expect(parseLabel('trivial')).toBe('trivial')
     expect(parseLabel(' Open.\n')).toBe('open')

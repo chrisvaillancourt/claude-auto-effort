@@ -4,7 +4,7 @@ A Claude Code mod (function-hook plugin). `README.md` is the user-facing spec; k
 
 ## Layout
 
-- `hooks/policy.ts`: pure decisions and text: option parsing, the skip rule (empty, slash command, acknowledgement), the `ultrathink` keyword, the judge's rubric and label parsing, the model capability table and clamping, the per-step effort choice, command parsing, status and stats text. No `$`, no I/O. Unit-tested in `policy.test.ts`.
+- `hooks/policy.ts`: pure decisions and text: option parsing, the skip rule (empty, slash command, acknowledgement), the `ultrathink` keyword, the judge's rubric, its input (code fences dropped, head and tail kept, after oh-my-pi's tiny-model preprocessing) and label parsing, the model capability table and clamping, the per-step effort choice, command parsing, status and stats text. No `$`, no I/O. Unit-tested in `policy.test.ts`.
 - `hooks/register.ts`: wiring. `session.start` (command, config), `turn.start` (decide once per main turn, calling the judge), `turn.step` (apply the decision to every request of the turn; cap subagents), `turn.complete` (log the decision with the turn's usage), `session.end` (reset on `/clear`), `command.run` (`/auto-effort`). Tested through the engine in `register.test.ts`.
 - `types/index.d.ts`: the mod's types and its `$.state` contract (`PluginState['auto-effort']`). Every `$.state` key the module uses must be declared here.
 
