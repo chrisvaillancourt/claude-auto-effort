@@ -48,10 +48,11 @@ export type Decision = {
   reason: string | null
   judgeMs: number | null
   judgeUsage: Usage | null
-  /** Filled at the turn's first step: the step's model, the session's effort, and what was sent. */
+  /** The first step's model and the session's effort as that step carried it. */
   model: string | null
   sessionEffort: string | number | null
-  sentEffort: string | number | null
+  /** The effort each request of the turn was sent at, in order (null: the request had none). */
+  sentEfforts: (string | number | null)[]
   steps: number
 }
 
@@ -79,7 +80,7 @@ export type LogRecord = {
   effort: Effort | null
   model: string | null
   sessionEffort: string | number | null
-  sentEffort: string | number | null
+  sentEfforts: (string | number | null)[]
   steps: number
   judgeMs: number | null
   judgeUsage: Usage | null

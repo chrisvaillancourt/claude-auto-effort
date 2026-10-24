@@ -26,7 +26,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 - **`ultrathink`.** A prompt containing the word `ultrathink` skips the judge and runs at the model's top level (`max`) for that turn only. Claude Code's own `ultrathink` only adds an instruction and leaves the effort sent to the API unchanged; this mod also raises the effort.
 - **Your own effort setting.** A hook can't tell whether the session's effort came from `/effort`, `--effort`, `effortLevel` or the model's default, so while the mod is on it overrides all of them. Use `/auto-effort off` to go back to the session's effort, or `/auto-effort pin <level>` to fix one. The exception is `CLAUDE_CODE_EFFORT_LEVEL`: when that variable is set, the mod changes no request, main or subagent (it reports itself as deferring); it checks the variable on every request.
 - **Subagents** keep their own effort. Set `subagentCap` to lower any subagent request above a level to that level; it never raises one.
-- **Log.** Each main turn adds one JSON line to `<logDir>/<session id>.jsonl` (default `~/.claude/auto-effort/`): where the decision came from, the label, the effort requested and the session's effort, the model, the judge's latency and token usage, the turn's token usage and duration, and how the turn ended. No prompt text is logged. A failed write is reported once and never interrupts a turn.
+- **Log.** Each main turn adds one JSON line to `<logDir>/<session id>.jsonl` (default `~/.claude/auto-effort/`): where the decision came from, the label, the effort requested, the session's effort, the effort each request of the turn was actually sent at, the model, the judge's latency and token usage, the turn's token usage and duration, and how the turn ended. No prompt text is logged. A failed write is reported once and never interrupts a turn.
 
 ## What it costs
 
@@ -42,7 +42,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 - `status` (or nothing): whether it is on, any pin, and the last decision.
 - `on` / `off`: turn it on or off for this session. Off takes effect on the next request.
 - `pin <level>`: send every main-loop request at `low`, `medium`, `high`, `xhigh` or `max` (clamped to the model), no judge. `unpin` goes back to judging.
-- `stats`: a summary of this session's log and of all logged sessions: turns by source and effort, judge latency (median, p95), failures, judge tokens and turn tokens.
+- `stats`: a summary of this session's log and of all logged sessions: turns by source and by the effort sent (`mixed` when a turn's requests went at different efforts, after a mid-turn `pin` or `off`), judge latency (median, p95), failures, judge tokens and turn tokens.
 
 ## Options
 

@@ -28,7 +28,7 @@ const OPUS = 'claude-opus-5-5'
 function decided(d: Partial<Decision>): Decision {
   return {
     turnId: 't1', source: 'judge', label: null, effort: null, reason: null, judgeMs: null, judgeUsage: null,
-    model: null, sessionEffort: null, sentEffort: null, steps: 0, ...d,
+    model: null, sessionEffort: null, sentEfforts: [], steps: 0, ...d,
   }
 }
 
@@ -251,8 +251,8 @@ describe('log and stats', () => {
     logRecord(decided(d), { ts: '2026-10-23T00:00:00.000Z', usage, durationMs: 1200, outcome })
 
   test('a record carries the decision and the turn, with no prompt text', async () => {
-    const r = rec({ label: 'routine', effort: 'medium', sentEffort: 'medium', judgeMs: 500 })
-    expect(r).toMatchObject({ turnId: 't1', source: 'judge', label: 'routine', sentEffort: 'medium', judgeMs: 500, usage, durationMs: 1200 })
+    const r = rec({ label: 'routine', effort: 'medium', sentEfforts: ['medium'], judgeMs: 500 })
+    expect(r).toMatchObject({ turnId: 't1', source: 'judge', label: 'routine', sentEfforts: ['medium'], judgeMs: 500, usage, durationMs: 1200 })
     expect(Object.keys(r)).not.toContain('text')
   })
 
@@ -263,18 +263,19 @@ describe('log and stats', () => {
 
   test('statsText summarizes sources, efforts, latency, failures and tokens', async () => {
     const mine = [
-      rec({ label: 'trivial', effort: 'low', sentEffort: 'low', judgeMs: 400, judgeUsage: usage }),
-      rec({ label: 'open', effort: 'xhigh', sentEffort: 'xhigh', judgeMs: 800, judgeUsage: usage }),
-      rec({ source: 'fallback', reason: 'timeout', judgeMs: 4000, sentEffort: 'high' }),
-      rec({ source: 'inherit', reason: 'ack', effort: 'xhigh', sentEffort: 'xhigh' }),
+      rec({ label: 'trivial', effort: 'low', sentEfforts: ['low', 'low'], judgeMs: 400, judgeUsage: usage }),
+      rec({ label: 'open', effort: 'xhigh', sentEfforts: ['xhigh'], judgeMs: 800, judgeUsage: usage }),
+      rec({ source: 'fallback', reason: 'timeout', judgeMs: 4000, sentEfforts: ['high'] }),
+      rec({ source: 'inherit', reason: 'ack', effort: 'xhigh', sentEfforts: ['xhigh'] }),
+      rec({ source: 'pin', effort: 'max', sentEfforts: ['low', 'max'] }),
     ]
     const text = statsText(mine, [...mine, ...mine])
-    expect(text).toContain('This session: 4 turns')
-    expect(text).toContain('judge 2, fallback 1, inherit 1')
-    expect(text).toContain('low 1, high 1, xhigh 2')
+    expect(text).toContain('This session: 5 turns')
+    expect(text).toContain('judge 2, fallback 1, inherit 1, pin 1')
+    expect(text).toContain('effort sent: low 1, high 1, xhigh 2, mixed 1')
     expect(text).toContain('timeout 1')
     expect(text).toContain('median 800 ms')
-    expect(text).toContain('All logged sessions: 8 turns')
+    expect(text).toContain('All logged sessions: 10 turns')
     expect(statsText([], [])).toContain('No turns logged yet')
   })
 })

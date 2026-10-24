@@ -124,7 +124,7 @@ describe('auto-effort', () => {
       const t = await turn($, 'design the retry policy')
       expect(effortsOf(w, t)).toEqual(['high', 'high'])
       expect(w.statuses.at(-1)).toBe(`effort: session · judge ${reason}`)
-      expect(w.logLines().at(-1)).toMatchObject({ source: 'fallback', reason, sentEffort: 'high' })
+      expect(w.logLines().at(-1)).toMatchObject({ source: 'fallback', reason, sentEfforts: ['high', 'high'] })
     })
   }
 
@@ -257,17 +257,38 @@ describe('auto-effort', () => {
     const lines = w.logLines()
     expect(lines.length).toBe(2)
     expect(lines[0]).toMatchObject({
-      source: 'judge', label: 'open', effort: 'xhigh', model: OPUS, sessionEffort: 'high', sentEffort: 'xhigh', steps: 2,
+      source: 'judge', label: 'open', effort: 'xhigh', model: OPUS, sessionEffort: 'high', sentEfforts: ['xhigh', 'xhigh'], steps: 2,
       judgeUsage: USAGE, durationMs: 900, outcome: 'answer',
     })
     expect(typeof lines[0].judgeMs).toBe('number')
-    expect(lines[1]).toMatchObject({ source: 'inherit', reason: 'ack', sentEffort: 'xhigh' })
+    expect(lines[1]).toMatchObject({ source: 'inherit', reason: 'ack', sentEfforts: ['xhigh', 'xhigh'] })
     expect(JSON.stringify(lines)).not.toContain('billing')
 
     w.files.set(`${LOG_DIR}/other.jsonl`, `${JSON.stringify(lines[0])}\n`)
     const stats = (await command($, 'stats')).text
     expect(stats).toContain('This session: 2 turns')
     expect(stats).toContain('All logged sessions: 3 turns')
+  })
+
+  test('a turn whose requests went at different efforts is logged and counted as mixed', async ($, on) => {
+    const w = world(on)
+    await start($)
+    w.reply({ isAnswered: true, text: 'trivial', usage: USAGE })
+    const turnId = `t${++turnNo}`
+    await $.turn.start({ text: 'rename foo to bar', turnId })
+    const stepOnce = async (index: number) => {
+      const s = $.turn.step({ turnId, index, model: OPUS, effort: 'high', messageCount: 1 })
+      for await (const _ of s);
+    }
+    await stepOnce(0)
+    await command($, 'pin max')
+    await stepOnce(1)
+    await $.turn.complete({ answer: 'done', durationMs: 900, isAborted: false, turnId, reason: 'answer', usage: { ...USAGE, model: OPUS } })
+    expect(effortsOf(w, turnId)).toEqual(['low', 'max'])
+    expect(w.logLines().at(-1)).toMatchObject({ sentEfforts: ['low', 'max'], steps: 2 })
+    const stats = (await command($, 'stats')).text
+    expect(stats).toContain('effort sent: mixed 1')
+    expect(stats).not.toContain('low 1')
   })
 
   test('the logDir option moves the log', { options: { logDir: '/logs/ae/' } }, async ($, on) => {

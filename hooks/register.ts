@@ -26,7 +26,7 @@ const NAME = 'auto-effort'
 
 // Change the shape tag when Session's fields change: a value an older version
 // stored (it outlives a hot reload) then reads as INITIAL instead of breaking.
-const sessionAtom = atom({ plugin: 'auto-effort', key: 'session' } as const, INITIAL, { shape: 'session-2' })
+const sessionAtom = atom({ plugin: 'auto-effort', key: 'session' } as const, INITIAL, { shape: 'session-3' })
 
 // Module variables reset on a hot reload; register runs again then.
 // Anything that must persist goes in $.state.
@@ -178,7 +178,7 @@ export const register: Register = (on, options) => {
             steps: d.steps + 1,
             model: first ? e.model : d.model,
             sessionEffort: first ? e.effort ?? null : d.sessionEffort,
-            sentEffort: first ? effort ?? e.effort ?? null : d.sentEffort,
+            sentEfforts: [...d.sentEfforts, effort ?? e.effort ?? null],
           },
         }
       })

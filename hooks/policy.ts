@@ -189,7 +189,7 @@ export function clampEffort(effort: Effort, supported: readonly Effort[]): Effor
 function decision(turnId: string, source: Source, effort: Effort | null, more: Partial<Decision> = {}): Decision {
   return {
     turnId, source, effort, label: null, reason: null, judgeMs: null, judgeUsage: null,
-    model: null, sessionEffort: null, sentEffort: null, steps: 0, ...more,
+    model: null, sessionEffort: null, sentEfforts: [], steps: 0, ...more,
   }
 }
 
@@ -287,7 +287,7 @@ export function statusLine(active: boolean, d: Decision | null): string | undefi
 }
 
 function describe(d: Decision): string {
-  const sent = d.sentEffort === null ? '' : `, sent ${d.sentEffort}`
+  const sent = d.sentEfforts.length === 0 ? '' : `, sent ${d.sentEfforts.map(e => e ?? 'none').join(' → ')}`
   const why = d.label ?? d.reason ?? ''
   return `${d.source}${why ? ` (${why})` : ''}: ${d.effort ?? 'session effort'}${sent}${d.judgeMs !== null ? `, judge ${d.judgeMs} ms` : ''}`
 }
@@ -314,7 +314,7 @@ export function logRecord(d: Decision, turn: { ts: string; usage: Usage | null; 
     effort: d.effort,
     model: d.model,
     sessionEffort: d.sessionEffort,
-    sentEffort: d.sentEffort,
+    sentEfforts: d.sentEfforts,
     steps: d.steps,
     judgeMs: d.judgeMs,
     judgeUsage: d.judgeUsage,
@@ -370,17 +370,26 @@ function tokens(u: Usage): string {
   return `${u.input_tokens} in, ${u.output_tokens} out, ${u.cache_read_input_tokens} cache read, ${u.cache_creation_input_tokens} cache write`
 }
 
+/** One turn's effort for stats: the level every request went at, `mixed`, or `no request`. */
+function sentLabel(r: LogRecord): string {
+  const all = Array.isArray(r.sentEfforts) ? r.sentEfforts : []
+  if (all.length === 0) return 'no request'
+  const first = all[0] ?? null
+  if (!all.every(e => (e ?? null) === first)) return 'mixed'
+  return first === null ? 'none' : String(first)
+}
+
 const SOURCES: readonly string[] = ['judge', 'fallback', 'inherit', 'ultrathink', 'pin', 'env', 'off']
 
 function summary(title: string, rs: LogRecord[]): string[] {
   const judged = rs.filter(r => r.judgeMs !== null)
   const ms = judged.map(r => r.judgeMs as number).sort((a, b) => a - b)
   const failures = rs.filter(r => r.source === 'fallback').map(r => r.reason ?? 'unknown')
-  const sent = rs.map(r => (r.sentEffort === null ? 'unchanged' : String(r.sentEffort)))
+  const sent = rs.map(sentLabel)
   return [
     `${title}: ${rs.length} turns`,
     `  sources: ${counts(rs.map(r => r.source), SOURCES)}`,
-    `  effort sent: ${counts(sent, [...EFFORTS, 'unchanged'])}`,
+    `  effort sent: ${counts(sent, [...EFFORTS, 'mixed', 'none', 'no request'])}`,
     `  judge: ${judged.length} calls${ms.length ? `, median ${pct(ms, 0.5)} ms, p95 ${pct(ms, 0.95)} ms` : ''}; failures: ${counts(failures)}`,
     `  judge tokens: ${tokens(sum(rs, r => r.judgeUsage))}`,
     `  turn tokens: ${tokens(sum(rs, r => r.usage))}`,
