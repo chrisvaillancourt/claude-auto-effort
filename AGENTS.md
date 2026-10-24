@@ -55,6 +55,7 @@ The API is early access and changes between releases; the declarations are the a
 - `$.session.compact` rejects while a turn runs and in headless sessions.
 - A plugin's submitted prompt never expands `@` mentions; `$.prompt.fill` lets the person send it instead.
 - `$.model.fork` replays the main thread's last request, which ends before the turn's final answer: quote the answer into the fork prompt if the fork needs it.
+- `claude plugin validate` reads a `command.run` hook as answering its own command only when the matcher and the `$.command.register` name are string literals; a `const` makes it a gate without `.catch`.
 - The engine already prefixes `$.ui.status`, `$.ui.toast` and command output with the plugin name; don't add `auto-effort:` there. `$.ui.log` lines keep the prefix.
 - A model `Write` outside the project raises a permission prompt; have the plugin write its own files with `$.fs.write` (it creates directories). `$.fs.write` replaces the whole file; there is no append.
 - `turn.step` hooks are async generators in the path of every request: always pass the stream through (`yield* next({ ...e, effort })`). A rewritten `model` must be a full id (`claude-haiku-5-5`); an alias failed with `unrecognized_model`. Changing `effort` per request keeps the prompt cache (Opus, Sonnet, Haiku 5.5); changing `model` rereads everything uncached. The UI keeps showing the session's model and effort, so surface a rewrite with `$.ui.status`.
