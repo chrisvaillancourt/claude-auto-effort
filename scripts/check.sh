@@ -13,7 +13,8 @@
 # (TS_VERSION to change the pin, TSC to override the command).
 set -euo pipefail
 
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# CDPATH unset: with it exported, bash prints the directory cd found and root gets it twice.
+root="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 run_tsc=1
 [[ "${1:-}" == "--no-tsc" ]] && run_tsc=0
 
