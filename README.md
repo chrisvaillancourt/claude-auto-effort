@@ -7,7 +7,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 ## Behavior
 
 - **Main conversation only.** At the start of each main-loop turn, the mod decides one effort and applies it to every model request of that turn (the first one and each tool-loop step after it). The UI keeps showing the session's effort, so the mod shows what it sent in its status line under the prompt, refreshed at every request: `effort low · trivial`, `effort high (xhigh clamped) · pinned` when the model lacks the level, or `effort: unchanged (unknown model)` when it left the request alone.
-- **The judge.** One `$.model.complete` call to Haiku (`claude-haiku-5-5`, effort `low`, at most 16 output tokens) with a short rubric. It rates the request by how open-ended the problem is, not by its length or the amount of work:
+- **The judge.** One `$.model.complete` call to Haiku (`claude-haiku-5-5`, effort `low`, `maxTokens` 16) with a short rubric. It rates the request by how open-ended the problem is, not by its length or the amount of work:
 
   | Label | Means | Default effort |
   | --- | --- | --- |
@@ -30,7 +30,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
 
 ## What it costs
 
-- One Haiku request per judged turn: about 460 input tokens of rubric (a short prompt measured 470–500 in all) plus the prompt (capped at 4,000 characters, roughly 1,000 tokens more), and under 10 output tokens. Skipped, pinned and `ultrathink` turns make no request. These requests don't appear in Claude Code's session cost totals; the log records their usage.
+- One Haiku request per judged turn: about 460 input tokens of rubric (a short prompt measured 470–500 in all) plus the prompt (capped at 4,000 characters, roughly 1,000 tokens more), and a few output tokens: labeled replies measured 3–5. `maxTokens` 16 is requested but did not bound the reply in one review probe, where a prompt that tried to steer the judge drew an 82-token explanation (rejected as no label; the turn kept the session effort), so expect an occasional larger reply. Skipped, pinned and `ultrathink` turns make no request. These requests don't appear in Claude Code's session cost totals; the log records their usage.
 - Up to `timeoutMs` of wait before each judged turn; live runs on Claude Code 2.1.310 measured 0.7–1.3 s.
 - Changing the effort between requests keeps the prompt cache on Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.1 (per Claude Code's docs). On other models or providers an effort change may reread the cached prefix; the mod never changes the model, system prompt or tools.
 - The effort itself: turns the judge rates `open` run at `xhigh`, which costs more than a session at `medium` or `high`. Lower the last entry of `efforts` to cap that.
