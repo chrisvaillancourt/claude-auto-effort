@@ -182,10 +182,18 @@ describe('step effort', () => {
     expect(stepEffort(config, s, step({ effort: 2048 }))).toBe(undefined)
   })
 
-  test('off and pin are read at step time; env decisions never rewrite', async () => {
+  test('off and pin are read at step time; the env override never rewrites', async () => {
     expect(stepEffort(config, withDecision({ effort: 'low' }, { mode: 'off' }), step())).toBe(undefined)
     expect(stepEffort(config, withDecision({ effort: 'low' }, { pin: 'max' }), step())).toBe('max')
-    expect(stepEffort(config, withDecision({ source: 'env', effort: null }, { pin: 'max' }), step())).toBe(undefined)
+    expect(stepEffort(config, withDecision({ source: 'env', effort: null }, { pin: 'max' }), step(), 'high')).toBe(undefined)
+  })
+
+  test('CLAUDE_CODE_EFFORT_LEVEL set: no rewrite for any step, whatever the turn decision or cap', async () => {
+    const capped = { ...config, subagentCap: 'low' as const }
+    expect(stepEffort(capped, withDecision({ effort: 'low' }), step({ agentId: 'a1', effort: 'high' }), 'high')).toBe(undefined)
+    expect(stepEffort(config, withDecision({ source: 'off' }, { pin: 'low' }), step(), 'high')).toBe(undefined)
+    expect(stepEffort(config, withDecision({ effort: 'low' }), step(), 'high')).toBe(undefined)
+    expect(stepEffort(config, withDecision({ effort: 'low' }), step(), '')).toBe('low')
   })
 
   test('subagents are left alone unless a cap lowers them', async () => {

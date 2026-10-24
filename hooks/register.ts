@@ -165,7 +165,7 @@ export const register: Register = (on, options) => {
   // Apply the turn's decision to every request; facts (off, pin, model) are read now.
   on('turn.step', async function* ($, e, next) {
     const s = await read($, sessionAtom)
-    const effort = stepEffort(config, s, e)
+    const effort = stepEffort(config, s, e, await $.env.get('CLAUDE_CODE_EFFORT_LEVEL'))
     if (e.agentId === undefined && s.decision?.turnId === e.turnId) {
       await update($, sessionAtom, cur => {
         const d = cur.decision

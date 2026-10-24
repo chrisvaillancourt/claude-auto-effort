@@ -229,6 +229,25 @@ describe('auto-effort', () => {
     expect((await command($, 'status')).text).toContain('CLAUDE_CODE_EFFORT_LEVEL=high is set')
   })
 
+  test('CLAUDE_CODE_EFFORT_LEVEL set: a subagent cap does not rewrite', { options: { subagentCap: 'low' } }, async ($, on) => {
+    const w = world(on, { CLAUDE_CODE_EFFORT_LEVEL: 'high' })
+    await start($)
+    const sub = await turn($, 'search', 1, { agentId: 'a1' })
+    expect(effortsOf(w, sub)).toEqual(['high'])
+  })
+
+  test('CLAUDE_CODE_EFFORT_LEVEL set: on and pin mid-turn do not rewrite', { options: { enabled: false } }, async ($, on) => {
+    const w = world(on, { CLAUDE_CODE_EFFORT_LEVEL: 'high' })
+    await start($)
+    const turnId = `t${++turnNo}`
+    await $.turn.start({ text: 'explain the race', turnId })
+    await command($, 'pin low')
+    await command($, 'on')
+    const s = $.turn.step({ turnId, index: 0, model: OPUS, effort: 'high', messageCount: 1 })
+    for await (const _ of s);
+    expect(effortsOf(w, turnId)).toEqual(['high'])
+  })
+
   test('each main turn logs one line without prompt text, and stats summarizes it', async ($, on) => {
     const w = world(on)
     await start($)

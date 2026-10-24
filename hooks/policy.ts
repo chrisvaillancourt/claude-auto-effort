@@ -201,7 +201,9 @@ export function judgedDecision(turnId: string, config: Config, r: JudgeOutcome):
 export type Step = { turnId: string; model: string; effort?: string | number | undefined; agentId?: string }
 
 /** The effort to send for one request, or undefined to leave the request as the engine made it. */
-export function stepEffort(config: Config, session: Session, step: Step): Effort | undefined {
+export function stepEffort(config: Config, session: Session, step: Step, envEffort?: string): Effort | undefined {
+  // CLAUDE_CODE_EFFORT_LEVEL is the person's hard override: checked on every step, main or subagent.
+  if (envEffort !== undefined && envEffort.trim() !== '') return undefined
   if (!isActive(config, session)) return undefined
   const current = asEffort(step.effort)
   if (current === undefined || typeof step.effort !== 'string') return undefined
@@ -215,7 +217,6 @@ export function stepEffort(config: Config, session: Session, step: Step): Effort
   }
 
   const d = session.decision
-  if (d && d.turnId === step.turnId && d.source === 'env') return undefined
   if (session.pin) return clampEffort(session.pin, supported)
   if (!d || d.turnId !== step.turnId || d.effort === null) return undefined
   return clampEffort(d.effort, supported)
