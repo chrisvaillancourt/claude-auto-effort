@@ -141,14 +141,32 @@ export function judgePrompt(text: string): string {
   return `<request>\n${middleCut(t, JUDGE_MAX_CHARS)}\n</request>`
 }
 
+const omitted = (n: number) => `\n[… ${n} chars omitted …]\n`
+const isHigh = (c: number) => c >= 0xd800 && c <= 0xdbff
+const isLow = (c: number) => c >= 0xdc00 && c <= 0xdfff
+
+/**
+ * Cuts the middle out of `t` to fit `max`, keeping two thirds of the room
+ * from the head and one third from the tail. The marker's width depends on
+ * the count it states, so the cut is recomputed until the width is stable and
+ * the count is taken from the slices kept. Neither cut splits a surrogate pair.
+ */
 function middleCut(t: string, max: number): string {
   if (t.length <= max) return t
-  // The count changes the marker's width; two passes settle it.
-  let marker = `\n[… ${t.length - max} chars omitted …]\n`
-  marker = `\n[… ${t.length - Math.max(0, max - marker.length)} chars omitted …]\n`
-  const kept = Math.max(0, max - marker.length)
-  const head = Math.ceil((kept * 2) / 3)
-  return `${t.slice(0, head)}${marker}${t.slice(t.length - (kept - head))}`
+  let markerLen = 0
+  let head = 0
+  let tail = 0
+  for (let pass = 0; pass < 10; pass++) {
+    const kept = Math.max(0, max - markerLen)
+    head = Math.ceil((kept * 2) / 3)
+    tail = kept - head
+    if (head > 0 && isHigh(t.charCodeAt(head - 1))) head--
+    if (tail > 0 && isLow(t.charCodeAt(t.length - tail))) tail--
+    const len = omitted(t.length - head - tail).length
+    if (len === markerLen) break
+    markerLen = len
+  }
+  return `${t.slice(0, head)}${omitted(t.length - head - tail)}${t.slice(t.length - tail)}`
 }
 
 /** The label the judge's reply names, when it is exactly one label word. */

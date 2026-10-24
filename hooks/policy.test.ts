@@ -107,6 +107,28 @@ describe('prompt rules', () => {
     expect(p.length).toBeLessThan(JUDGE_MAX_CHARS + 100)
   })
 
+  const bodyOf = (p: string) => p.slice('<request>\n'.length, -'\n</request>'.length)
+
+  test('the omission count is exact, digit-width transitions included', async () => {
+    for (const len of [4001, 4024, 4999, 5000, 13_999, 14_000, 104_000]) {
+      const body = bodyOf(judgePrompt('a'.repeat(len)))
+      const m = body.match(/\n\[… (\d+) chars omitted …\]\n/)
+      expect(m).not.toBe(null)
+      const retained = body.length - (m?.[0].length ?? 0)
+      expect(Number(m?.[1])).toBe(len - retained)
+      expect(body.length).toBeLessThanOrEqual(JUDGE_MAX_CHARS)
+    }
+  })
+
+  test('the cut never splits a surrogate pair', async () => {
+    const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+    for (let shift = 0; shift < 4; shift++) {
+      const body = bodyOf(judgePrompt(`${'a'.repeat(shift)}${'\u{1F600}'.repeat(2500)}${'b'.repeat(shift)}`))
+      expect(lone.test(body)).toBe(false)
+      expect(body.length).toBeLessThanOrEqual(JUDGE_MAX_CHARS)
+    }
+  })
+
   test('fenced code blocks are dropped unless nothing else is left', async () => {
     const p = judgePrompt('Why does this hang?\n```ts\nawait lock.acquire()\n```\nIt only hangs under load.')
     expect(p).not.toContain('lock.acquire')

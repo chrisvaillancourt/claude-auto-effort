@@ -16,7 +16,7 @@ A Claude Code mod (function-hook plugin) that picks the reasoning effort for eac
   | `involved` | Several viable designs or candidate causes. | `high` |
   | `open` | Open cause of flaky, concurrent or stale behavior; easy to get subtly wrong. | `xhigh` |
 
-  The judge reads at most 4,000 characters of the prompt: fenced code blocks are dropped first (unless the prompt is only code), and a longer prompt keeps its first two thirds and last third of that budget, so a question written after a long paste still reaches the judge.
+  The judge reads at most 4,000 characters of the prompt: fenced code blocks are dropped first (unless the prompt is only code), and a longer prompt keeps its first two thirds and last third of that budget, so a question written after a long paste still reaches the judge. The marker states exactly how many characters were left out, and neither cut splits a character.
 - **Clamped to the model.** The effort is lowered to the highest level the step's model supports (`xhigh` runs as `high` on Opus 4.6 and Sonnet 4.6). On a model the mod doesn't recognize, or one without effort, it changes nothing.
 - **Fails open.** If the judge errors, answers something other than a label, or takes longer than `timeoutMs` (4 seconds by default), the turn runs at the session's own effort. A late answer is ignored. The turn waits at most `timeoutMs` before it starts.
 - **Skipped prompts.** These are not judged; the turn reuses the effort of the last judged turn (or the session's effort if there is none):
