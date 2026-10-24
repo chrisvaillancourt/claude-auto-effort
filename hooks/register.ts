@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import {
-  INITIAL,
+  INITIAL_CONTROLS,
+  INITIAL_TURNS,
   JUDGE_SYSTEM,
   USAGE,
   configFrom,
@@ -25,14 +26,22 @@ import type { Config, Decision, Label, LogRecord, Session, Usage } from '../type
 
 const NAME = 'auto-effort'
 
-// Change the shape tag when Session's fields change: a value an older version
-// stored (it outlives a hot reload) then reads as INITIAL instead of breaking.
-const sessionAtom = atom({ plugin: 'auto-effort', key: 'session' } as const, INITIAL, { shape: 'session-3' })
+// Change a shape tag when that atom's fields change: a value an older version
+// stored (it outlives a hot reload) then reads as the initial value instead of
+// breaking. The person's controls have their own atom so a change to the
+// per-turn data never resets an `off` or a pin.
+const controlsAtom = atom({ plugin: 'auto-effort', key: 'controls' } as const, INITIAL_CONTROLS, { shape: 'controls-1' })
+const sessionAtom = atom({ plugin: 'auto-effort', key: 'session' } as const, INITIAL_TURNS, { shape: 'session-4' })
 
 // Module variables reset on a hot reload; register runs again then.
 // Anything that must persist goes in $.state.
 let config: Config = configFrom({}).config
 let problems: string[] = []
+
+/** Controls and per-turn data together, read now. */
+async function view($: EngineInterface): Promise<Session> {
+  return { ...(await read($, controlsAtom)), ...(await read($, sessionAtom)) }
+}
 
 /** Best effort: reporting must never throw out of a hook. */
 function log($: EngineInterface, text: string) {
@@ -135,14 +144,14 @@ export const register: Register = (on, options) => {
       argumentHint: '[status|on|off|pin <level>|unpin|stats]',
     })
     for (const p of problems) log($, p)
-    showStatus($, await read($, sessionAtom))
+    showStatus($, await view($))
     return result
   })
 
   on('session.end', async ($, e, next) => {
     if (e.reason === 'clear') {
       await update($, sessionAtom, s => ({ ...s, decision: null, lastJudged: null }))
-      showStatus($, await read($, sessionAtom))
+      showStatus($, await view($))
     }
     return next(e)
   })
@@ -152,20 +161,20 @@ export const register: Register = (on, options) => {
   on('turn.start', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e)
     const envEffort = await $.env.get('CLAUDE_CODE_EFFORT_LEVEL')
-    const planned = planTurn({ turnId: e.turnId, text: e.text, config, session: await read($, sessionAtom), envEffort })
+    const planned = planTurn({ turnId: e.turnId, text: e.text, config, session: await view($), envEffort })
     const decision: Decision = planned === 'judge' ? judgedDecision(e.turnId, config, await judge($, e.text, next.signal)) : planned
     await update($, sessionAtom, s => ({
       ...s,
       decision,
       lastJudged: decision.source === 'judge' ? decision.effort : s.lastJudged,
     }))
-    showStatus($, await read($, sessionAtom))
+    showStatus($, await view($))
     return next(e)
   })
 
   // Apply the turn's decision to every request; facts (off, pin, model) are read now.
   on('turn.step', async function* ($, e, next) {
-    const s = await read($, sessionAtom)
+    const s = await view($)
     const plan = stepPlan(config, s, e, await $.env.get('CLAUDE_CODE_EFFORT_LEVEL'))
     const effort = plan.send
     if (e.agentId === undefined) {
@@ -208,10 +217,10 @@ export const register: Register = (on, options) => {
     const cmd = parseArgs(e.args)
     if (cmd.kind === 'help') return { text: cmd.error ? `${cmd.error}\n${USAGE}` : USAGE }
     if (cmd.kind === 'stats') return { text: await stats($) }
-    if (cmd.kind === 'set') await update($, sessionAtom, s => ({ ...s, mode: cmd.mode }))
-    if (cmd.kind === 'pin') await update($, sessionAtom, s => ({ ...s, pin: cmd.effort }))
-    if (cmd.kind === 'unpin') await update($, sessionAtom, s => ({ ...s, pin: null }))
-    const s = await read($, sessionAtom)
+    if (cmd.kind === 'set') await update($, controlsAtom, s => ({ ...s, mode: cmd.mode }))
+    if (cmd.kind === 'pin') await update($, controlsAtom, s => ({ ...s, pin: cmd.effort }))
+    if (cmd.kind === 'unpin') await update($, controlsAtom, s => ({ ...s, pin: null }))
+    const s = await view($)
     if (cmd.kind === 'pin' && isActive(config, s)) $.ui.status(`effort ${cmd.effort} · pinned`)
     else showStatus($, s)
     return { text: statusText(config, s, await $.env.get('CLAUDE_CODE_EFFORT_LEVEL')) }

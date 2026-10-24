@@ -56,12 +56,20 @@ export type Decision = {
   steps: number
 }
 
-/** What the mod keeps for the session. Lives in $.state, so it survives a hot reload. */
-export type Session = {
+/**
+ * The person's controls for the session, in $.state under their own key and
+ * shape tag: a change to the per-turn data never changes their shape, so a
+ * reload never forgets an `off` or a pin.
+ */
+export type Controls = {
   /** A /auto-effort on|off override for this session; null follows the `enabled` option. */
   mode: Mode | null
   /** A /auto-effort pin level; null judges. */
   pin: Effort | null
+}
+
+/** The per-turn data, in $.state under its own key; its shape tag changes when these fields do. */
+export type Turns = {
   /** The current (or last) main turn's decision. */
   decision: Decision | null
   /** The effort of the last judged turn, which skipped prompts reuse. */
@@ -69,6 +77,9 @@ export type Session = {
   /** A log write failed this session and was reported. */
   logFailed: boolean
 }
+
+/** Controls and per-turn data together: what the pure policy decides from. Never stored as one. */
+export type Session = Controls & Turns
 
 /** One line of the decision log. No prompt text. */
 export type LogRecord = {
@@ -91,6 +102,6 @@ export type LogRecord = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'auto-effort': { session: Shaped<Session> }
+    'auto-effort': { controls: Shaped<Controls>; session: Shaped<Turns> }
   }
 }

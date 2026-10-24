@@ -1,7 +1,9 @@
 // Pure decisions: no `$`, no I/O. register.ts only wires them to events.
-import type { Config, Decision, Effort, Label, LogRecord, Mode, Session, Source, Usage } from '../types'
+import type { Config, Controls, Decision, Effort, Label, LogRecord, Mode, Session, Source, Turns, Usage } from '../types'
 
-export const INITIAL: Session = { mode: null, pin: null, decision: null, lastJudged: null, logFailed: false }
+export const INITIAL_CONTROLS: Controls = { mode: null, pin: null }
+export const INITIAL_TURNS: Turns = { decision: null, lastJudged: null, logFailed: false }
+export const INITIAL: Session = { ...INITIAL_CONTROLS, ...INITIAL_TURNS }
 
 export const EFFORTS: readonly Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 export const LABELS: readonly Label[] = ['trivial', 'routine', 'involved', 'open']
